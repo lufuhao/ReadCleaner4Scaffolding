@@ -1,1 +1,11 @@
 ReadCleaner4Scaffolding
+
+
+Description:
+  This pipeline and the included scripts are used to filter useful reads for SSPACE
+    1. Remove duplicates
+    2. Remove high-depth reads (needs to define threshold)
+           Please refer to SOPRA to defined your data-specific cut-off threshold
+    3. Apply Window size for a group of reads to remove low-confidence reads and contigs
+    
+
