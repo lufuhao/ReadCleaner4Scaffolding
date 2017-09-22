@@ -554,6 +554,84 @@ RunSspace () {
 }
 
 
+
+### RunStatsPipeline $fastaindex $unpairedstats $RSPpairedstats $RSPmeaninsert $RSPstdevinsert $RSPprefix
+RunStatsPipeline () {
+	local RSPfastaindex=$1
+	local RSPunpairedstats=$2;
+	local RSPpairedstats=$3;
+	local RSPmeaninsert=$4;
+	local RSPstdevinsert=$5;
+	local RSPprefix=$6;
+	
+	local RSPinfo="BASH(RunStatsPipeline)";
+	local RSPnumpairs=5
+	local RSPrundir=$(pwd)
+	
+	echo "$RSPprefix:"
+	echo "        InDex:    $RSPfastaindex"
+	echo "        InSert:   $RSPmeaninsert +- $RSPstdevinsert"
+	echo "        Unpaired: $RSPunpairedstats"
+	echo "        Paired:   $RSPpairedstats"
+	
+	
+	if [ -d $RSPrundir/$RSPprefix ]; then
+		rm -rf $RSPrundir/$RSPprefix > /dev/null 2>&1
+	fi
+	mkdir -p $RSPrundir/$RSPprefix
+	cd $RSPrundir/$RSPprefix
+	mkdir -p $RSPrundir/$RSPprefix/1.misassembly
+	cd $RSPrundir/$RSPprefix/1.misassembly
+	
+	cat $RSPunpairedstats $RSPpairedstats > $RSPrundir/$RSPprefix/1.misassembly/$RSPprefix.7.8.merged.stats
+	if [ $? -ne 0 ] || [ ! -s  $RSPrundir/$RSPprefix/1.misassembly/$RSPprefix.7.8.merged.stats ]; then
+		echo "${RSPinfo}Error: merge stats error" >&2;
+		return 1;
+	fi
+
+
+	echo "${RSPinfo}Info: Detecting good and misassembly errors";
+	echo "${RSPinfo}Info: Detecting good and misassembly errors" >&2;
+	bam_breaks_by_windowsize_and_numpairs.pl $RSPrundir/$RSPprefix/1.misassembly/$RSPprefix.7.8.merged.stats $RSPfastaindex $RSPmeaninsert $RSPstdevinsert $RSPnumpairs $RSPrundir/$RSPprefix/1.misassembly/$RSPprefix.7.8.merged.stats.misassembly
+	if [ $? -ne 0 ]; then
+		echo "${RSPinfo}Error: bam_breaks_by_windowsize_and_numpairs.pl running error" >&2;
+		echo "CMD used: bam_breaks_by_windowsize_and_numpairs.pl $RSPrundir/$RSPprefix/1.misassembly/$RSPprefix.7.8.merged.stats $RSPfastaindex $RSPmeaninsert $RSPstdevinsert $RSPnumpairs $RSPrundir/$RSPprefix/1.misassembly/$RSPprefix.7.8.merged.stats.misassembly" >&2
+		return 1;
+	fi
+
+
+	echo "${RSPinfo}Info: Detecting orientation errors";
+	echo "${RSPinfo}Info: Detecting orientation errors" >&2;
+	mkdir -p $RSPrundir/$RSPprefix/2.orientation
+	cd $RSPrundir/$RSPprefix/2.orientation
+	bam_orientations_by_windowsize_and_numpairs.pl $RSPpairedstats $fastaindex $RSPmeaninsert $RSPstdevinsert $RSPnumpairs $RSPrundir/$RSPprefix/2.orientation/$RSPprefix.8.orientation
+	if [ $? -ne 0 ]; then
+		echo "${RSPinfo}Error: bam_breaks_by_windowsize_and_numpairs.pl running error" >&2;
+		echo "CMD used: bam_orientations_by_windowsize_and_numpairs.pl $RSPpairedstats $fastaindex $RSPmeaninsert $RSPstdevinsert $RSPnumpairs $RSPrundir/$RSPprefix/2.orientation/$RSPprefix.8.orientation"
+		return 1;
+	fi
+
+
+	echo "${RSPinfo}Info: Detecting orientation errors";
+	echo "${RSPinfo}Info: Detecting orientation errors" >&2;
+	mkdir -p $RSPrundir/$RSPprefix/3.indel
+	cd $RSPrundir/$RSPprefix/3.indel
+	RSPmininsert=$(($RSPmeaninsert-$RSPstdevinsert-$RSPstdevinsert))
+	RSPmaxinsert=$(($RSPmeaninsert+$RSPstdevinsert+$RSPstdevinsert))
+	echo "${RSPinfo}Info: Min insert: $RSPmininsert"
+	echo "${RSPinfo}Info: Max insert: $RSPmaxinsert"
+	bam_improper_insert_size_by_windowsize_and_numpairs.pl $RSPpairedstats $RSPmininsert $RSPmaxinsert $RSPnumpairs $RSPrundir/$RSPprefix/3.indel/$RSPprefix.8.improper
+	if [ $? -ne 0 ]; then
+		echo "${RSPinfo}Error: bam_improper_insert_size_by_windowsize_and_numpairs.pl running error" >&2;
+		echo "CMD used: bam_improper_insert_size_by_windowsize_and_numpairs.pl $RSPpairedstats $RSPmininsert $RSPmaxinsert $RSPnumpairs $RSPrundir/$RSPprefix/3.indel/$RSPprefix.8.improper"
+		return 1;
+	fi
+	
+	
+	return 0;
+}
+
+
 #################### Command test ###################################
 if [ $(CmdExists 'bowtie') -ne 0 ]; then
 	echo "Error: CMD 'bowtie' in PROGRAM 'bowtie' is required but not found.  Aborting..." >&2 
@@ -1668,7 +1746,6 @@ elif [ $opt_e -gt 0 ]; then
 			exit 100;
 		fi
 	fi
-
 	echo -e "\n\n\n###Read number after pair-up"
 	for indlistfile in ${listfastq8all[@]}; do
 		if [ -e "$indlistfile" ]; then
@@ -1752,6 +1829,13 @@ elif [ $opt_e -gt 0 ]; then
 		fi
 		mv "$opt_p.9.finalrefsids" $finalrefsid
 		mv "$opt_p.9.finalreadids" $finalreadid
+	fi
+#	if RunStatsPipeline $opt_ref.fai $bam_unpairedstats $bam_pairedstats $meaninsert $stdevinsert $prefix; then
+#		echo "$prefix succeeded"
+#	else
+#		echo "Error: $prefix failed"
+#	fi
+	if [ $startstep -le $step ]; then
 		if SeqTkSubSeqFasta $opt_ref $finalrefsid $finalrefsfa; then
 			echo "Info: seqtk subseq fasta success"
 		else
