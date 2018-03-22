@@ -7,5 +7,136 @@ Description:
     2. Remove high-depth reads (needs to define threshold)
            Please refer to SOPRA to defined your data-specific cut-off threshold
     3. Apply Window size for a group of reads to remove low-confidence reads and contigs
-    
 
+Requirements:
+    Linux:  perl
+    Scripts:
+        picardrmdup
+            Source:     https://github.com/lufuhao/FuhaoBin
+            Location:   FuhaoBin/FuhaoBash/
+        bowtie_dedup_mates_separately.sh
+            Source:     https://github.com/lufuhao/FuhaoBin
+            Location:   FuhaoBin/FuhaoBash/
+        bam_extract_readname_using_region.pl
+            Source:     https://github.com/lufuhao/FuhaoBin
+            Location:   FuhaoBin/FuhaoPerl/
+        bam_filter_by_readname_file.pl
+            Source:     https://github.com/lufuhao/FuhaoBin
+            Location:   FuhaoBin/FuhaoPerl/
+        bam_BamKeepBothMates.pl
+            Source:     https://github.com/lufuhao/FuhaoBin
+            Location:   FuhaoBin/FuhaoPerl/
+        SizeCollectBin_luf.pl
+            Source:     https://github.com/lufuhao/FuhaoBin
+            Location:   FuhaoBin/FuhaoPerl/
+        list2_compar.pl
+            Source:     https://github.com/lufuhao/FuhaoBin
+            Location:   FuhaoBin/FuhaoPerl/
+        bam_scaffolding_separately.stats_noBioDBSAM.pl
+            Included
+        bam_exclude_reads_by_windows_size_and_numpairs.pl
+            Included
+        sspace_seqid_conversion.pl
+            Source:     https://github.com/lufuhao/FuhaoBin
+            Location:   FuhaoBin/FuhaoPerl/
+        sspace_link_scaffolding_ID_to_contig_IDs.pl
+            Source:     https://github.com/lufuhao/FuhaoBin
+            Location:   FuhaoBin/FuhaoPerl/
+    Perl Modules: 
+        FuhaoPerl5Lib
+            Source:     https://github.com/lufuhao/FuhaoPerl5Lib
+    Programs:
+        SSPACE
+            https://www.baseclear.com/services/bioinformatics/basetools/sspace-standard/
+        Bowtie
+            http://bowtie-bio.sourceforge.net/index.shtml
+        SAMtools
+            https://github.com/samtools
+        bedtools
+            http://bedtools.readthedocs.io/en/latest/
+        bamaddrg
+            https://github.com/ekg/bamaddrg
+        seqtk
+            https://github.com/lh3/seqtk
+
+
+
+
+Main script: readCleaner4Scaffolding.sh.
+    Options:
+      -h    Print this help message
+      -1    Fastq R1 files
+      -2    Fastq R2 files
+      -l    Libraries names
+      -x    Bowtie index
+      -r    Reference fasta
+      -e    Maximum depth threshold;
+      -m    Maximum insert size between mates for bowtie -X, default: 300
+      -p    Output file prefix, without path
+      -d    Delete temporary files
+      -t    Number of threads, default: 1
+      -sspace path to SSPACE
+
+  First Part: Get mapped reads, deduplication and clean
+
+    $ readCleaner4Scaffolding.sh -1 lib1.R1.fastq,lib2.R1.fastq -2 lib1.R2.fastq,lib2.R2.fastq -l lib1,lib2 -x bowtie.index -f reference.fasta-p out_prefix -d -t 5
+
+    Will do: 
+    1. bowtie_dedup_mates_separately.sh for each library
+        Mapping each mate (-1 or -2) to reference (-r / -x)
+        Merge both mates
+        picardrmdup remove duplicates
+        Merge libaries
+    2. picardrmdup again
+    3. SAMtools depth calculate average depth and STDEV
+        You need to define depth threshold to remove reads in repeat region
+          Note: picardrmdup will deduplicate each mate separately,
+                so, some reads may have two duplicates
+
+  Second Part: Run with -e option: extract reads, remap, and deduplicate
+
+$ readCleaner4Scaffolding.sh -1 lib1.R1.fastq,lib2.R1.fastq -2 lib1.R2.fastq,lib2.R2.fastq -l lib1,lib2 -x bowtie.index -f reference.fasta-p out_prefix -d -t 5 -e 5
+
+    Will do
+    4. Remove high-depth reads
+    5. Extract non-high-depth reads
+    6. Bowtie mapping
+    7. Clean high depth again
+        Keep both mate mapped reads
+    8. Extract reads again [1]
+        Bowtie map as mate
+        rmdup
+        Get read names with FLAG 1024
+        Exclude these reads from [1]
+            * For further analysis
+        bowtie map as single again
+            * For further analysis
+        merge BAMs
+            * For further analysis
+    9. Extract reads and reference seq for SSPACE
+    10. run SSPACE
+
+
+
+Additional scripts with build-in help message:
+
+  bam_orientations_by_windowsize_and_numpairs.pl
+
+      Estimate region size with orientation error in each sequences
+
+  bam_improper_insert_size_by_windowsize_and_numpairs.pl
+
+      Estimate region size with insert/deletion error in each sequences
+
+  bam_breaks_by_windowsize_and_numpairs.pl
+
+      Estimate region size with paring error in each sequences
+
+
+
+Author:
+  Fu-Hao Lu
+  Post-Doctoral Scientist in Micheal Bevan laboratory
+  Cell and Developmental Department, John Innes Centre
+  Norwich NR4 7UH, United Kingdom
+  E-mail: Fu-Hao.Lu@jic.ac.uk

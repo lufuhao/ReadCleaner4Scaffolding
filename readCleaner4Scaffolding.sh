@@ -22,10 +22,10 @@ cat<<HELP
 
 $0 --- Brief Introduction
 
-Version: 20170908
+Version: 20180322
 
 Requirements:
-    Linux:  perl, Bowtie, SAMtools, bedtools, bamaddrg
+    Linux:  perl
     Script: picardrmdup
             bowtie_dedup_mates_separately.sh
             bam_extract_readname_using_region.pl
@@ -33,12 +33,13 @@ Requirements:
             bam_BamKeepBothMates.pl
             SizeCollectBin_luf.pl
             list2_compar.pl
+            bam_exclude_reads_by_windows_size_and_numpairs.pl
             bam_scaffolding_separately.stats_noBioDBSAM.pl
             sspace_seqid_conversion.pl
             sspace_link_scaffolding_ID_to_contig_IDs.pl
     Perl Modules: 
             FuhaoPerl5Lib
-    Program: SSPACE
+    Program: SSPACE, Bowtie, SAMtools, bedtools, bamaddrg, seqtk
 
 Descriptions:
 
